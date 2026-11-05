@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ResQCareSensorPacket",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "reading_id",
+    "patient_id",
+    "source_type",
+    "recorded_at",
+    "received_at",
+    "signal_quality",
+    "data_quality_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "reading_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "patient_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "device_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": ["VIRTUAL_SIMULATOR", "SYNTHETIC_BENCHMARK", "WEARABLE_DEVICE"]
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "heart_rate_bpm": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 300
+    },
+    "spo2_percent": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "temperature_c": {
+      "type": ["number", "null"],
+      "minimum": 20.0,
+      "maximum": 45.0
+    },
+    "accel_x": {
+      "type": ["number", "null"]
+    },
+    "accel_y": {
+      "type": ["number", "null"]
+    },
+    "accel_z": {
+      "type": ["number", "null"]
+    },
+    "activity_label": {
+      "type": "string",
+      "enum": [
+        "RESTING",
+        "WALKING",
+        "RUNNING",
+        "TRANSITION",
+        "FALL_SUSPECTED",
+        "POST_FALL_STATIONARY",
+        "UNKNOWN"
+      ]
+    },
+    "signal_quality": {
+      "type": "string",
+      "enum": ["OPTIMAL", "ACCEPTABLE", "DEGRADED", "DISCONNECTED"]
+    },
+    "data_quality_status": {
+      "type": "string",
+      "enum": ["VALID", "OUT_OF_BOUNDS", "INTERPOLATED", "MISSING_SENSORS", "STALE_DATA"]
+    },
+    "provenance_metadata": {
+      "type": "object",
+      "properties": {
+        "scenario_name": { "type": "string" },
+        "synthetic_noise_std": { "type": "number" },
+        "simulated_battery_pct": { "type": "integer" }
+      }
+    }
+  }
+}
+
