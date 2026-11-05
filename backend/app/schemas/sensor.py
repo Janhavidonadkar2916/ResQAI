@@ -110,3 +110,4 @@ class SensorIngestResponse(BaseModel):
     recorded_at: datetime
     data_quality_status: DataQualityStatusType
     message: str = "Sensor packet ingested and verified against schema v1.0"
+

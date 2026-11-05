@@ -36,3 +36,4 @@ export interface SystemHealthStatus {
   database: string;
   active_simulators: number;
 }
+

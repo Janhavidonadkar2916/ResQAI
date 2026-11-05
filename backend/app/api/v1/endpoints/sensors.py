@@ -1,86 +1,61 @@
-from datetime import datetime, timezone
-import uuid
+from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from app.core.database import get_db
 from app.schemas.sensor import SensorPacket, SensorIngestResponse
+from app.services.ingestion_service import IngestionService
+from app.services.simulator_service import virtual_sensor_engine
 
 router = APIRouter()
 
-# In-memory buffer for Phase 0 telemetry frame storage
-_telemetry_cache: List[SensorPacket] = []
-
 @router.post("/ingest", response_model=SensorIngestResponse, status_code=status.HTTP_201_CREATED, summary="Ingest validated sensor reading")
-def ingest_reading(packet: SensorPacket) -> SensorIngestResponse:
+def ingest_reading(
+    packet: SensorPacket,
+    db: Session = Depends(get_db)
+) -> SensorIngestResponse:
     """
     Ingests and validates a single sensor reading adhering strictly to Sensor Contract v1.0.
-    Ensures data provenance and prevents treating missing sensors as normal readings.
+    Stores reading in relational database and updates in-memory low-latency telemetry cache.
     """
-    # Enforce schema version check
     if packet.schema_version != "1.0":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Unsupported schema_version '{packet.schema_version}'. Expected '1.0'."
         )
-    
-    # Store in memory cache (kept bounded to last 500 readings for Phase 0)
-    _telemetry_cache.append(packet)
-    if len(_telemetry_cache) > 500:
-        _telemetry_cache.pop(0)
+    return IngestionService.ingest_packet(db, packet)
 
-    return SensorIngestResponse(
-        status="success",
-        reading_id=packet.reading_id,
-        patient_id=packet.patient_id,
-        validated=True,
-        recorded_at=packet.recorded_at,
-        data_quality_status=packet.data_quality_status,
-        message="Reading validated and stored in telemetry pipeline."
-    )
+@router.get("/patients/{patient_id}/latest", response_model=SensorPacket, summary="Get latest telemetry reading for a patient")
+def get_latest_patient_reading(
+    patient_id: str,
+    db: Session = Depends(get_db)
+) -> SensorPacket:
+    """Retrieves the most recent verified observation frame for a patient."""
+    reading = IngestionService.get_latest_reading(db, patient_id)
+    if not reading:
+        # If no reading exists in DB yet, synthesize an initial resting baseline
+        return virtual_sensor_engine.generate_packet(patient_id, scenario_override="NORMAL_RESTING")
+    return reading
+
+@router.get("/patients/{patient_id}/history", response_model=List[SensorPacket], summary="Fetch historical readings for charting")
+def get_patient_history(
+    patient_id: str,
+    limit: int = Query(default=60, ge=1, le=500),
+    db: Session = Depends(get_db)
+) -> List[SensorPacket]:
+    """Retrieves chronological observations for rendering health trends and vitals waveforms."""
+    history = IngestionService.get_history(db, patient_id, limit=limit)
+    if not history:
+        # Pre-seed 30 historical points if empty for instant visual feedback
+        history = virtual_sensor_engine.generate_batch(patient_id, scenario="NORMAL_RESTING", count=30, interval_seconds=2)
+        for p in history:
+            IngestionService.ingest_packet(db, p)
+    return history
 
 @router.get("/sample", response_model=SensorPacket, summary="Generate a synthetic reference packet")
 def get_sample_reading(
     scenario: Optional[str] = "NORMAL_RESTING",
-    patient_id: Optional[str] = None
+    patient_id: Optional[str] = "demo-patient-sample"
 ) -> SensorPacket:
-    """
-    Returns an immediate reference sensor packet conforming to Contract v1.0.
-    Useful for client contract testing and UI telemetry preview.
-    """
-    pid = patient_id or str(uuid.uuid4())
-    
-    if scenario == "TACHYCARDIA":
-        hr, spo2, temp, activity = 148.5, 96.0, 37.2, "RESTING"
-    elif scenario == "FALL_SUSPECTED":
-        hr, spo2, temp, activity = 115.0, 94.5, 36.6, "FALL_SUSPECTED"
-    elif scenario == "RESPIRATORY_DISTRESS":
-        hr, spo2, temp, activity = 120.0, 87.0, 38.4, "RESTING"
-    else:  # NORMAL_RESTING
-        hr, spo2, temp, activity = 72.0, 98.6, 36.7, "RESTING"
-
-    return SensorPacket(
-        schema_version="1.0",
-        reading_id=str(uuid.uuid4()),
-        patient_id=pid,
-        source_type="VIRTUAL_SIMULATOR",
-        recorded_at=datetime.now(timezone.utc),
-        received_at=datetime.now(timezone.utc),
-        heart_rate_bpm=hr,
-        spo2_percent=spo2,
-        temperature_c=temp,
-        accel_x=0.03,
-        accel_y=0.99,
-        accel_z=0.08,
-        activity_label=activity,
-        signal_quality="OPTIMAL",
-        data_quality_status="VALID",
-        provenance_metadata={
-            "scenario_name": scenario,
-            "synthetic_noise_std": 0.05,
-            "simulated_battery_pct": 98
-        }
-    )
-
-@router.get("/recent", response_model=List[SensorPacket], summary="Fetch cached recent telemetry frames")
-def get_recent_readings(limit: int = 50) -> List[SensorPacket]:
-    """Retrieves recent frames ingested during the current runtime session."""
-    return _telemetry_cache[-limit:]
+    """Returns an immediate reference sensor packet conforming to Contract v1.0."""
+    return virtual_sensor_engine.generate_packet(patient_id, scenario_override=scenario) # type: ignore

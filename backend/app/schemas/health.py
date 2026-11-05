@@ -12,3 +12,4 @@ class SystemHealthStatus(BaseModel):
         default="ResQCare AI is a software prototype for research and monitoring simulation. Not an FDA/CE certified medical device.",
         description="Mandatory clinical safety disclaimer"
     )
+

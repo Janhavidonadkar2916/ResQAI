@@ -17,3 +17,4 @@ def get_health() -> SystemHealthStatus:
         active_simulators=0,
         disclaimer="ResQCare AI is a research and monitoring prototype using simulated sensor data. Not certified for clinical diagnosis."
     )
+

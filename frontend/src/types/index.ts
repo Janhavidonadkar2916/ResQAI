@@ -20,3 +20,4 @@ export interface Patient {
   risk_tier: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
   created_at: string;
 }
+

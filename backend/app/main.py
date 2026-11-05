@@ -59,3 +59,4 @@ def root():
         "health_check": f"{settings.API_V1_STR}/health",
         "disclaimer": "Software-first prototype using simulated virtual telemetry."
     }
+

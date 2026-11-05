@@ -84,3 +84,4 @@ def test_sensor_ingestion_out_of_bounds_spo2(client: TestClient):
     }
     response = client.post("/api/v1/sensors/ingest", json=payload)
     assert response.status_code == 422
+

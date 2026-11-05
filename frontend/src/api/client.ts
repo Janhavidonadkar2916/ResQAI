@@ -48,3 +48,4 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): 
 
   return response.json() as Promise<T>;
 }
+

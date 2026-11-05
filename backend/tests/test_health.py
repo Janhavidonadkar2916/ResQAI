@@ -16,3 +16,4 @@ def test_health_endpoint(client: TestClient):
     assert "version" in data
     assert "database" in data
     assert "disclaimer" in data
+

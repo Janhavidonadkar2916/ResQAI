@@ -35,3 +35,4 @@ def decode_token(token: str) -> Optional[dict]:
         return decoded
     except Exception:
         return None
+

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Activity, 
   ShieldAlert, 
@@ -9,46 +9,43 @@ import {
   Thermometer, 
   Wind, 
   AlertTriangle,
-  CheckCircle2,
   RefreshCw,
   Sliders,
-  Info
+  Info,
+  UserCheck,
+  Flame
 } from 'lucide-react';
 import { fetchApi } from './api/client';
-import { SystemHealthStatus, SensorPacket } from './types';
+import { patientApi, PatientDetail } from './api/patientApi';
+import { sensorApi } from './api/sensorApi';
+import { SystemHealthStatus, SensorPacket, User as UserType } from './types';
+import { PatientRoster } from './components/dashboard/PatientRoster';
+import { VitalsTrendChart } from './components/monitoring/VitalsTrendChart';
+import { SimulatorControlPanel } from './components/simulator/SimulatorControlPanel';
+import { AuthModal } from './components/auth/AuthModal';
 
 export default function App() {
   const [health, setHealth] = useState<SystemHealthStatus | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [healthLoading, setHealthLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'simulator' | 'patients' | 'emergencies'>('overview');
-  
-  // Sample simulated telemetry preview for Phase 0 verification
-  const [sampleTelemetry] = useState<SensorPacket>({
-    schema_version: '1.0',
-    reading_id: '550e8400-e29b-41d4-a716-446655440000',
-    patient_id: 'c9b4e872-4cf3-4819-bf98-0c6575cbba11',
-    source_type: 'VIRTUAL_SIMULATOR',
-    recorded_at: new Date().toISOString(),
-    received_at: new Date().toISOString(),
-    heart_rate_bpm: 74.2,
-    spo2_percent: 98.5,
-    temperature_c: 36.8,
-    accel_x: 0.04,
-    accel_y: 0.98,
-    accel_z: 0.12,
-    activity_label: 'RESTING',
-    signal_quality: 'OPTIMAL',
-    data_quality_status: 'VALID',
-    provenance_metadata: {
-      scenario_name: 'NORMAL_RESTING',
-      synthetic_noise_std: 0.05,
-      simulated_battery_pct: 95
-    }
-  });
+  const [activeTab, setActiveTab] = useState<'overview' | 'simulator' | 'patients'>('overview');
 
-  const checkHealth = async () => {
-    setLoading(true);
+  // Patients State
+  const [patients, setPatients] = useState<PatientDetail[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+
+  // Telemetry State
+  const [latestPacket, setLatestPacket] = useState<SensorPacket | null>(null);
+  const [history, setHistory] = useState<SensorPacket[]>([]);
+  const [chartLoading, setChartLoading] = useState<boolean>(false);
+
+  // Auth & Session
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+  const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
+
+  // Check health and current user
+  const checkHealth = useCallback(async () => {
+    setHealthLoading(true);
     setError(null);
     try {
       const data = await fetchApi<SystemHealthStatus>('/health');
@@ -57,36 +54,105 @@ export default function App() {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Failed to connect to ResQCare AI Backend API');
+        setError('Failed to reach ResQCare AI Backend API');
       }
       setHealth(null);
     } finally {
-      setLoading(false);
+      setHealthLoading(false);
     }
-  };
+  }, []);
 
+  // Load initial patients
+  const loadPatients = useCallback(async () => {
+    try {
+      const list = await patientApi.list();
+      setPatients(list);
+      if (list.length > 0 && !selectedPatientId) {
+        setSelectedPatientId(list[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to load patients:', err);
+    }
+  }, [selectedPatientId]);
+
+  // Load patient telemetry (latest + history)
+  const loadTelemetry = useCallback(async (pid: string) => {
+    setChartLoading(true);
+    try {
+      const [latest, hist] = await Promise.all([
+        sensorApi.getLatest(pid),
+        sensorApi.getHistory(pid, 30)
+      ]);
+      setLatestPacket(latest);
+      setHistory(hist);
+    } catch (err) {
+      console.error('Failed to load telemetry:', err);
+    } finally {
+      setChartLoading(false);
+    }
+  }, []);
+
+  // Check current user session
+  useEffect(() => {
+    const token = localStorage.getItem('resqcare_token');
+    if (token) {
+      fetchApi<UserType>('/auth/me')
+        .then(setCurrentUser)
+        .catch(() => localStorage.removeItem('resqcare_token'));
+    }
+  }, []);
+
+  // Initial mount
   useEffect(() => {
     checkHealth();
-  }, []);
+    loadPatients();
+  }, [checkHealth, loadPatients]);
+
+  // When selected patient changes, load their telemetry
+  useEffect(() => {
+    if (selectedPatientId) {
+      loadTelemetry(selectedPatientId);
+    }
+  }, [selectedPatientId, loadTelemetry]);
+
+  // Handle packet emitted from simulator
+  const handlePacketGenerated = (packet: SensorPacket) => {
+    setLatestPacket(packet);
+    setHistory((prev) => {
+      const updated = [...prev, packet];
+      if (updated.length > 40) updated.shift();
+      return updated;
+    });
+  };
+
+  const selectedPatient = patients.find((p) => p.id === selectedPatientId);
+
+  // Status badge styling
+  const isHypoxic = latestPacket?.spo2_percent !== null && latestPacket?.spo2_percent !== undefined && latestPacket.spo2_percent < 90;
+  const isTachycardic = latestPacket?.heart_rate_bpm !== null && latestPacket?.heart_rate_bpm !== undefined && latestPacket.heart_rate_bpm > 130;
+  const isBradycardic = latestPacket?.heart_rate_bpm !== null && latestPacket?.heart_rate_bpm !== undefined && latestPacket.heart_rate_bpm < 50;
+  const isFallAlert = latestPacket?.activity_label === 'FALL_SUSPECTED' || latestPacket?.activity_label === 'POST_FALL_STATIONARY';
+  const isSensorDropped = latestPacket?.signal_quality === 'DISCONNECTED' || latestPacket?.data_quality_status === 'MISSING_SENSORS';
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-teal-500 selection:text-white">
-      {/* Top Warning Banner: Non-Clinical Prototype & Synthetic Data */}
+      {/* Top Clinical & Research Disclaimer */}
       <div className="bg-amber-950/80 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-200 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
           <span>
-            <strong>RESEARCH & MONITORING PROTOTYPE:</strong> Strictly for research and simulation. Not an FDA/CE certified medical device. Contains synthetic simulated signals only.
+            <strong>RESEARCH & MONITORING PROTOTYPE:</strong> Developed for software evaluation and simulation. Not an FDA/CE certified medical device. No clinical diagnosis provided.
           </span>
         </div>
-        <div className="hidden md:flex items-center space-x-4 text-slate-400">
-          <span>Schema Contract: <strong className="text-teal-400">v1.0</strong></span>
-          <span>Simulation Mode: <strong className="text-teal-400">Software-First</strong></span>
+        <div className="hidden md:flex items-center space-x-4 text-slate-400 text-[11px]">
+          <span>Schema: <strong className="text-teal-400">Contract v1.0</strong></span>
+          <span>Dual DB: <strong className="text-teal-400">{health?.database || 'Active'}</strong></span>
+          <span>Simulation: <strong className="text-emerald-400">Live Virtual Sensor</strong></span>
         </div>
       </div>
 
-      {/* Main Header / Navigation */}
-      <header className="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-6 py-4 flex items-center justify-between">
+      {/* Primary Header */}
+      <header className="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
             <Activity className="w-6 h-6 text-white" />
@@ -95,293 +161,378 @@ export default function App() {
             <div className="flex items-center space-x-2">
               <h1 className="text-xl font-bold tracking-tight text-white">ResQCare <span className="text-teal-400">AI</span></h1>
               <span className="text-[10px] font-semibold uppercase tracking-wider bg-teal-500/10 text-teal-400 border border-teal-500/20 px-2 py-0.5 rounded-full">
-                Phase 0 Foundation
+                Phase 1 MVP
               </span>
             </div>
-            <p className="text-xs text-slate-400">Intelligent Health Telemetry & Emergency Coordination</p>
+            <p className="text-xs text-slate-400">Intelligent Health Telemetry & Emergency Coordination Command Center</p>
           </div>
         </div>
 
-        {/* System Health Status Indicator */}
-        <div className="flex items-center space-x-4">
-          <button 
-            onClick={checkHealth}
-            disabled={loading}
-            className="flex items-center space-x-2 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-lg transition-all"
-            title="Refresh backend status"
+        {/* Right Controls: User Profile + System Status */}
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setIsAuthOpen(true)}
+            className="flex items-center space-x-2 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-xl transition-all"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-teal-400' : 'text-slate-400'}`} />
-            <span>{loading ? 'Checking...' : 'Check API'}</span>
+            <UserCheck className="w-3.5 h-3.5 text-teal-400" />
+            <span>{currentUser ? currentUser.full_name : 'Sign In / Persona'}</span>
           </button>
 
-          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg border bg-slate-900 border-slate-800">
+          <button 
+            onClick={checkHealth}
+            disabled={healthLoading}
+            className="flex items-center space-x-1.5 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-xl transition-all"
+            title="Refresh backend status"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${healthLoading ? 'animate-spin text-teal-400' : 'text-slate-400'}`} />
+            <span className="hidden sm:inline">{healthLoading ? 'Checking...' : 'Refresh'}</span>
+          </button>
+
+          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl border bg-slate-900 border-slate-800">
             <span className={`w-2.5 h-2.5 rounded-full ${health ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-            <span className="text-xs font-medium text-slate-300">
-              {health ? 'Backend Online' : 'Backend Offline'}
+            <span className="text-xs font-medium text-slate-300 hidden md:inline">
+              {health ? 'Engine Online' : 'Engine Offline'}
             </span>
           </div>
         </div>
       </header>
 
-      {/* Primary Layout Container */}
+      {/* Main Workspace Body */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
-        
+
         {/* Navigation Tabs */}
         <div className="flex space-x-2 border-b border-slate-800 pb-2">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
               activeTab === 'overview'
-                ? 'bg-teal-500/10 text-teal-300 border border-teal-500/30'
+                ? 'bg-teal-500/15 text-teal-300 border border-teal-500/40 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
             }`}
           >
-            Command Overview
+            Overview & Telemetry
           </button>
           <button
             onClick={() => setActiveTab('simulator')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
               activeTab === 'simulator'
-                ? 'bg-teal-500/10 text-teal-300 border border-teal-500/30'
+                ? 'bg-teal-500/15 text-teal-300 border border-teal-500/40 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
             }`}
           >
-            Virtual Sensor Simulator
-          </button>
-          <button
-            onClick={() => setActiveTab('patients')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === 'patients'
-                ? 'bg-teal-500/10 text-teal-300 border border-teal-500/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-            }`}
-          >
-            Patient Monitoring
-          </button>
-          <button
-            onClick={() => setActiveTab('emergencies')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === 'emergencies'
-                ? 'bg-teal-500/10 text-teal-300 border border-teal-500/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-            }`}
-          >
-            Emergency Incidents
+            <Sliders className="w-3.5 h-3.5 text-teal-400" />
+            <span>Virtual Sensor Simulator</span>
           </button>
         </div>
 
-        {/* Backend Connectivity Status Notification */}
+        {/* Backend Error Banner */}
         {error && (
-          <div className="bg-rose-950/40 border border-rose-500/30 rounded-xl p-4 text-sm text-rose-300 flex items-start space-x-3">
+          <div className="bg-rose-950/40 border border-rose-500/30 rounded-xl p-4 text-xs text-rose-300 flex items-start space-x-3">
             <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="font-semibold">Backend Connection Notice</p>
-              <p className="text-xs text-rose-400/80">
-                The frontend is running, but could not reach the FastAPI server at <code className="bg-slate-900 px-1 py-0.5 rounded text-slate-200">/api/v1/health</code>.
-                Make sure the backend is running with <code className="bg-slate-900 px-1 py-0.5 rounded text-slate-200">uvicorn app.main:app --reload</code>.
+              <p className="font-semibold text-sm">Backend Connectivity Notice</p>
+              <p className="text-rose-400/80">
+                Could not connect to FastAPI server. Run <code className="bg-slate-900 px-1 py-0.5 rounded text-slate-200">./start_dev.sh</code> to launch both backend and frontend.
               </p>
             </div>
           </div>
         )}
 
-        {/* System Architecture Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-              <span>FastAPI Backend</span>
-              <Cpu className="w-4 h-4 text-teal-400" />
+        {/* Live Critical Incident Alert Banner (Shows when anomaly occurs) */}
+        {(isFallAlert || isHypoxic || isTachycardic || isBradycardic || isSensorDropped) && (
+          <div className={`p-4 rounded-2xl border flex items-center justify-between animate-pulse ${
+            isFallAlert 
+              ? 'bg-rose-950/70 border-rose-500 text-rose-200'
+              : isHypoxic 
+              ? 'bg-amber-950/70 border-amber-500 text-amber-200'
+              : isTachycardic || isBradycardic
+              ? 'bg-orange-950/70 border-orange-500 text-orange-200'
+              : 'bg-slate-900 border-slate-700 text-slate-300'
+          }`}>
+            <div className="flex items-center space-x-3">
+              <ShieldAlert className="w-6 h-6 text-rose-400 shrink-0" />
+              <div>
+                <h4 className="text-sm font-bold">
+                  {isFallAlert && `CRITICAL FALL EVENT DETECTED: ${selectedPatient?.first_name || 'Patient'} ${selectedPatient?.last_name || ''}`}
+                  {isHypoxic && `SEVERE HYPOXIA ALERT: SpO2 ${latestPacket?.spo2_percent}% below 90% threshold`}
+                  {isTachycardic && `ACUTE TACHYCARDIA EPISODE: Heart Rate ${latestPacket?.heart_rate_bpm} BPM`}
+                  {isBradycardic && `CRITICAL BRADYCARDIA ALERT: Heart Rate ${latestPacket?.heart_rate_bpm} BPM`}
+                  {isSensorDropped && `TELEMETRY NOTICE: Sensor Disconnected / Missing Electrodes`}
+                </h4>
+                <p className="text-xs opacity-90 mt-0.5">
+                  Simulated observation frame recorded at {latestPacket?.recorded_at ? new Date(latestPacket.recorded_at).toLocaleTimeString() : 'N/A'}.
+                  Emergency workflow state machine triggered in Phase 4.
+                </p>
+              </div>
             </div>
-            <div className="text-xl font-bold text-white">
-              {health ? `v${health.version}` : 'Connecting...'}
-            </div>
-            <div className="text-xs text-slate-500 flex items-center space-x-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Modular Monolith Core</span>
-            </div>
+            <span className="text-xs uppercase font-extrabold px-3 py-1 bg-black/40 rounded-lg border border-white/10">
+              {latestPacket?.provenance_metadata?.scenario_name || 'ANOMALY'}
+            </span>
           </div>
+        )}
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-              <span>Database Layer</span>
-              <Database className="w-4 h-4 text-indigo-400" />
-            </div>
-            <div className="text-xl font-bold text-white">
-              {health ? health.database : 'PostgreSQL / SQLite'}
-            </div>
-            <div className="text-xs text-slate-500 flex items-center space-x-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>UUID & UTC Timestamps</span>
-            </div>
-          </div>
+        {/* Selected Patient Vitals Summary Ribbon */}
+        {selectedPatient && latestPacket && (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 font-bold">
+                  {selectedPatient.first_name[0]}{selectedPatient.last_name[0]}
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h2 className="text-base font-bold text-white">
+                      {selectedPatient.first_name} {selectedPatient.last_name}
+                    </h2>
+                    <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md font-mono">
+                      {selectedPatient.room_or_residence}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    DOB: {selectedPatient.date_of_birth} • Gender: {selectedPatient.gender} • Emergency Contacts: {selectedPatient.emergency_contacts?.length || 0}
+                  </p>
+                </div>
+              </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-              <span>Virtual Telemetry</span>
-              <Radio className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div className="text-xl font-bold text-white">
-              {health ? `${health.active_simulators} Active Streams` : 'Virtual Sensor Engine'}
-            </div>
-            <div className="text-xs text-slate-500 flex items-center space-x-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>No Hardware Required</span>
-            </div>
-          </div>
-
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-              <span>Intelligence Engine</span>
-              <ShieldAlert className="w-4 h-4 text-rose-400" />
-            </div>
-            <div className="text-xl font-bold text-white">
-              Two-Tier
-            </div>
-            <div className="text-xs text-slate-500 flex items-center space-x-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Rules + Anomaly Scorer</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Live Telemetry Card Preview (Validated Sensor Contract v1.0) */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-lg font-bold text-white">Sensor Data Contract Validation</h2>
-                <span className="text-xs font-mono bg-teal-500/10 text-teal-400 px-2 py-0.5 rounded border border-teal-500/20">
-                  Schema 1.0 (Live Packet)
+              {/* Status and Quality Flags */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className={`px-2.5 py-1 rounded-lg border font-semibold ${
+                  latestPacket.data_quality_status === 'VALID'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                }`}>
+                  Data: {latestPacket.data_quality_status}
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-medium">
+                  Signal: {latestPacket.signal_quality}
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-400 font-medium">
+                  Activity: {latestPacket.activity_label}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Demonstrates simulated vital signs and 3-axis kinematics conforming to canonical ResQCare JSON contract.
-              </p>
             </div>
-            <div className="flex items-center space-x-2 text-xs">
-              <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
-                Quality: {sampleTelemetry.signal_quality}
-              </span>
-              <span className="px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
-                Activity: {sampleTelemetry.activity_label}
-              </span>
+
+            {/* Vitals Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Heart Rate Card */}
+              <div className={`p-4 rounded-xl border transition-all ${
+                isTachycardic || isBradycardic
+                  ? 'bg-rose-950/40 border-rose-500/50'
+                  : 'bg-slate-950/70 border-slate-800/80'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Heart Rate</span>
+                  <Heart className={`w-4 h-4 ${isTachycardic || isBradycardic ? 'text-rose-400 animate-pulse' : 'text-rose-400'}`} />
+                </div>
+                <div className="flex items-baseline space-x-1.5 mt-2">
+                  <span className="text-3xl font-extrabold text-white">
+                    {latestPacket.heart_rate_bpm ?? '--'}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium">BPM</span>
+                </div>
+                <div className="text-[11px] mt-1 text-slate-500">
+                  {latestPacket.heart_rate_bpm ? (
+                    latestPacket.heart_rate_bpm > 100 ? (
+                      <span className="text-rose-400 font-semibold flex items-center space-x-1">
+                        <Flame className="w-3 h-3" />
+                        <span>Elevated / Tachycardic</span>
+                      </span>
+                    ) : latestPacket.heart_rate_bpm < 60 ? (
+                      <span className="text-amber-400 font-semibold">Low / Bradycardic</span>
+                    ) : (
+                      <span className="text-emerald-400">Normal Resting Band</span>
+                    )
+                  ) : (
+                    <span className="text-slate-500">Sensor Disconnected</span>
+                  )}
+                </div>
+              </div>
+
+              {/* SpO2 Card */}
+              <div className={`p-4 rounded-xl border transition-all ${
+                isHypoxic
+                  ? 'bg-rose-950/40 border-rose-500/50'
+                  : 'bg-slate-950/70 border-slate-800/80'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Blood Oxygen (SpO2)</span>
+                  <Wind className="w-4 h-4 text-teal-400" />
+                </div>
+                <div className="flex items-baseline space-x-1.5 mt-2">
+                  <span className="text-3xl font-extrabold text-white">
+                    {latestPacket.spo2_percent ?? '--'}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium">%</span>
+                </div>
+                <div className="text-[11px] mt-1 text-slate-500">
+                  {latestPacket.spo2_percent ? (
+                    latestPacket.spo2_percent < 90 ? (
+                      <span className="text-rose-400 font-semibold">Hypoxia Risk (&lt; 90%)</span>
+                    ) : latestPacket.spo2_percent < 95 ? (
+                      <span className="text-amber-400 font-semibold">Borderline Mild Hypoxia</span>
+                    ) : (
+                      <span className="text-emerald-400">Adequate Oxygenation</span>
+                    )
+                  ) : (
+                    <span className="text-slate-500">Sensor Disconnected</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Temperature Card */}
+              <div className="p-4 rounded-xl border bg-slate-950/70 border-slate-800/80">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Body Temperature</span>
+                  <Thermometer className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="flex items-baseline space-x-1.5 mt-2">
+                  <span className="text-3xl font-extrabold text-white">
+                    {latestPacket.temperature_c ?? '--'}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium">°C</span>
+                </div>
+                <div className="text-[11px] mt-1 text-slate-500">
+                  {latestPacket.temperature_c ? (
+                    latestPacket.temperature_c > 38.0 ? (
+                      <span className="text-amber-400 font-semibold">Febrile / High Temp</span>
+                    ) : (
+                      <span className="text-emerald-400">Normothermic Range</span>
+                    )
+                  ) : (
+                    <span className="text-slate-500">Sensor Disconnected</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Accelerometer Kinematics Card */}
+              <div className={`p-4 rounded-xl border transition-all ${
+                isFallAlert
+                  ? 'bg-rose-950/40 border-rose-500/50'
+                  : 'bg-slate-950/70 border-slate-800/80'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Motion Kinematics</span>
+                  <Radio className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div className="grid grid-cols-3 gap-1 mt-2 font-mono text-xs">
+                  <div className="bg-slate-900 p-1.5 rounded text-center">
+                    <span className="text-[9px] text-slate-500 block">X</span>
+                    <span className="text-white font-bold">{latestPacket.accel_x ?? '--'}g</span>
+                  </div>
+                  <div className="bg-slate-900 p-1.5 rounded text-center">
+                    <span className="text-[9px] text-slate-500 block">Y</span>
+                    <span className="text-white font-bold">{latestPacket.accel_y ?? '--'}g</span>
+                  </div>
+                  <div className="bg-slate-900 p-1.5 rounded text-center">
+                    <span className="text-[9px] text-slate-500 block">Z</span>
+                    <span className="text-white font-bold">{latestPacket.accel_z ?? '--'}g</span>
+                  </div>
+                </div>
+                <div className="text-[11px] mt-1.5 text-slate-500">
+                  {isFallAlert ? (
+                    <span className="text-rose-400 font-bold">Fall Kinematics Triggered</span>
+                  ) : (
+                    <span className="text-slate-400">Posture: {latestPacket.activity_label}</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
+        )}
 
-          {/* Vitals Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Heart Rate */}
-            <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
-                <Heart className="w-6 h-6 text-rose-400 animate-pulse" />
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Heart Rate</span>
-                <div className="flex items-baseline space-x-1">
-                  <span className="text-2xl font-bold text-white">{sampleTelemetry.heart_rate_bpm ?? '--'}</span>
-                  <span className="text-xs text-slate-400">BPM</span>
-                </div>
-                <span className="text-[11px] text-emerald-400">Resting Normal Range (60-100)</span>
-              </div>
-            </div>
-
-            {/* SpO2 */}
-            <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
-                <Wind className="w-6 h-6 text-teal-400" />
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Blood Oxygen (SpO2)</span>
-                <div className="flex items-baseline space-x-1">
-                  <span className="text-2xl font-bold text-white">{sampleTelemetry.spo2_percent ?? '--'}</span>
-                  <span className="text-xs text-slate-400">%</span>
-                </div>
-                <span className="text-[11px] text-emerald-400">Normal Oxygenation (&gt; 95%)</span>
-              </div>
-            </div>
-
-            {/* Temperature */}
-            <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                <Thermometer className="w-6 h-6 text-amber-400" />
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Body Temperature</span>
-                <div className="flex items-baseline space-x-1">
-                  <span className="text-2xl font-bold text-white">{sampleTelemetry.temperature_c ?? '--'}</span>
-                  <span className="text-xs text-slate-400">°C</span>
-                </div>
-                <span className="text-[11px] text-emerald-400">Normothermic (36.5 - 37.5)</span>
-              </div>
-            </div>
+        {/* Main Content Layout: Patient Roster + Interactive Trend Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Left Column: Monitored Patient Roster */}
+          <div className="lg:col-span-1">
+            <PatientRoster
+              patients={patients}
+              selectedPatientId={selectedPatientId}
+              onSelectPatient={(id) => setSelectedPatientId(id)}
+            />
           </div>
 
-          {/* Accelerometer Kinematics Frame */}
-          <div className="bg-slate-950/40 border border-slate-800/60 rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="font-medium text-slate-300">Virtual 3-Axis Accelerometer (Fall Detection Baseline)</span>
-              <span className="font-mono text-slate-500">Unit: Standard Gravities (g)</span>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-center">
-                <span className="text-[11px] text-slate-500 uppercase">Accel X</span>
-                <p className="font-mono text-sm font-semibold text-teal-400">{sampleTelemetry.accel_x} g</p>
-              </div>
-              <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-center">
-                <span className="text-[11px] text-slate-500 uppercase">Accel Y (Gravity)</span>
-                <p className="font-mono text-sm font-semibold text-emerald-400">{sampleTelemetry.accel_y} g</p>
-              </div>
-              <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-center">
-                <span className="text-[11px] text-slate-500 uppercase">Accel Z</span>
-                <p className="font-mono text-sm font-semibold text-teal-400">{sampleTelemetry.accel_z} g</p>
-              </div>
-            </div>
+          {/* Right Column: Telemetry Charts or Simulator Controls */}
+          <div className="lg:col-span-3 space-y-6">
+            {activeTab === 'overview' ? (
+              <VitalsTrendChart data={history} isLoading={chartLoading} />
+            ) : null}
+
+            {/* Virtual Simulator Control Panel */}
+            {selectedPatient && (
+              <SimulatorControlPanel
+                patientId={selectedPatient.id}
+                patientName={`${selectedPatient.first_name} ${selectedPatient.last_name}`}
+                onPacketGenerated={handlePacketGenerated}
+                onBatchGenerated={() => loadTelemetry(selectedPatient.id)}
+              />
+            )}
           </div>
         </div>
 
-        {/* Development Milestones Road Ahead */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-          <div className="flex items-center space-x-2">
-            <Sliders className="w-5 h-5 text-teal-400" />
-            <h3 className="text-base font-bold text-white">Phase-Wise Implementation Roadmap</h3>
+        {/* System Architecture Specifications Footer Card */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1 text-xs">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="font-semibold">FastAPI Engine</span>
+              <Cpu className="w-3.5 h-3.5 text-teal-400" />
+            </div>
+            <p className="text-white font-bold">{health ? `Version ${health.version}` : 'Connecting...'}</p>
+            <p className="text-slate-500">Pydantic v2 Contract Validation</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-            <div className="p-3 bg-slate-950 border border-teal-500/30 rounded-xl space-y-1">
-              <span className="font-semibold text-teal-300">Phase 0 — Project Foundation (Active)</span>
-              <p className="text-slate-400">Repo setup, FastAPI modular monolith, React frontend, schema contracts, dual DB support.</p>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1 text-xs">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="font-semibold">Database Engine</span>
+              <Database className="w-3.5 h-3.5 text-indigo-400" />
             </div>
-            <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-              <span className="font-semibold text-slate-300">Phase 1 — Software MVP</span>
-              <p className="text-slate-400">JWT Auth, patient profiles, virtual simulator service, ingestion API, basic telemetry charts.</p>
+            <p className="text-white font-bold">{health ? health.database : 'Dual Mode'}</p>
+            <p className="text-slate-500">PostgreSQL 16 & SQLite Fallback</p>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1 text-xs">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="font-semibold">Virtual Simulator</span>
+              <Radio className="w-3.5 h-3.5 text-emerald-400" />
             </div>
-            <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-              <span className="font-semibold text-slate-300">Phase 2 — Real-Time Monitoring</span>
-              <p className="text-slate-400">WebSocket telemetry streaming, signal quality degradation flags, 3-axis motion waveforms.</p>
+            <p className="text-white font-bold">7 Physiological Profiles</p>
+            <p className="text-slate-500">Zero Physical Hardware Dependency</p>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1 text-xs">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="font-semibold">Authentication (RBAC)</span>
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
             </div>
-            <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-              <span className="font-semibold text-slate-300">Phase 3 — AI Intelligence</span>
-              <p className="text-slate-400">Deterministic clinical rule engine, kinematic fall detection, rolling Z-score & Isolation Forest.</p>
-            </div>
-            <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-              <span className="font-semibold text-slate-300">Phase 4 — Emergency Response</span>
-              <p className="text-slate-400">Verification countdown, caregiver acknowledge/escalate workflows, incident timeline dossier.</p>
-            </div>
-            <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-              <span className="font-semibold text-slate-300">Phase 5 — Security & Medical Profiles</span>
-              <p className="text-slate-400">Role-Based Access Control (RBAC), emergency medical passes, tamper-evident audit logs.</p>
-            </div>
+            <p className="text-white font-bold">{currentUser ? currentUser.role : 'Guest Mode'}</p>
+            <p className="text-slate-500">Caregiver / Clinician Sessions</p>
           </div>
         </div>
 
       </div>
 
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        currentUser={currentUser}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          loadPatients();
+        }}
+        onLogout={() => {
+          localStorage.removeItem('resqcare_token');
+          setCurrentUser(null);
+        }}
+      />
+
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950 px-6 py-4 text-xs text-slate-500 flex flex-col md:flex-row items-center justify-between gap-2">
+      <footer className="border-t border-slate-800/80 bg-slate-950 px-6 py-4 text-xs text-slate-500 flex flex-col md:flex-row items-center justify-between gap-2 mt-8">
         <div className="flex items-center space-x-2">
           <Info className="w-4 h-4 text-slate-400" />
           <span>ResQCare AI Prototype • Research-Oriented Portfolio Architecture</span>
         </div>
         <div>
-          <span>Developed with FastAPI • React • TypeScript • Tailwind CSS • SQLAlchemy</span>
+          <span>Modular Monolith • FastAPI • React 18 • TypeScript • Tailwind CSS • Recharts</span>
         </div>
       </footer>
     </div>
