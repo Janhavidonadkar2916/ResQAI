@@ -4,6 +4,7 @@ from app.models.patient import Patient, PatientAccess, EmergencyContact
 from app.models.device import Device
 from app.models.sensor import SensorReading
 from app.models.intelligence import RiskAssessment
+from app.models.emergency import EmergencyEvent, EmergencyTimelineLog, Notification
 
 __all__ = [
     "Base",
@@ -13,5 +14,8 @@ __all__ = [
     "EmergencyContact",
     "Device",
     "SensorReading",
-    "RiskAssessment"
+    "RiskAssessment",
+    "EmergencyEvent",
+    "EmergencyTimelineLog",
+    "Notification"
 ]

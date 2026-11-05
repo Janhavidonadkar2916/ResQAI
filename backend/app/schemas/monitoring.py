@@ -30,3 +30,4 @@ class PatientMonitoringSummary(BaseModel):
     primary_risk_level: str
     active_device_status: str
     recommendations: List[str] = []
+

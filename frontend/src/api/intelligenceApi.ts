@@ -48,3 +48,4 @@ export const intelligenceApi = {
       body: JSON.stringify({ patient_id: patientId, packet })
     })
 };
+

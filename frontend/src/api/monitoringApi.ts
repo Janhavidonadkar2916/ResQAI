@@ -33,3 +33,4 @@ export const monitoringApi = {
   getSummary: (patientId: string, hours: number = 24) =>
     fetchApi<PatientMonitoringSummary>(`/monitoring/patients/${patientId}/summary?hours=${hours}`)
 };
+

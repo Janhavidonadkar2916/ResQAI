@@ -51,3 +51,4 @@ class FallDetector:
             return False, 0.1, "RECUMBENT_REST_NORMAL", metrics
 
         return False, 0.0, "NORMAL_KINEMATICS", metrics
+

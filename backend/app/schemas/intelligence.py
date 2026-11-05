@@ -48,3 +48,4 @@ class RiskAssessmentResponse(BaseModel):
 class AssessmentEvaluationRequest(BaseModel):
     patient_id: str
     packet: SensorPacket
+

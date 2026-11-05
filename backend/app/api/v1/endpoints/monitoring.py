@@ -59,3 +59,4 @@ async def websocket_telemetry_stream(
         ws_manager.disconnect(patient_id, websocket)
     finally:
         db.close()
+

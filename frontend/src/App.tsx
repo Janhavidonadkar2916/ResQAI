@@ -16,7 +16,8 @@ import {
   Flame,
   BrainCircuit,
   BarChart3,
-  Wifi
+  Siren,
+  ChevronRight
 } from 'lucide-react';
 import { fetchApi } from './api/client';
 import { patientApi, PatientDetail } from './api/patientApi';
@@ -28,6 +29,8 @@ import { Kinematic3DPlot } from './components/monitoring/Kinematic3DPlot';
 import { AnalyticsSummaryCards } from './components/monitoring/AnalyticsSummaryCards';
 import { SimulatorControlPanel } from './components/simulator/SimulatorControlPanel';
 import { AIInsightsPanel } from './components/intelligence/AIInsightsPanel';
+import { EmergencyConsole } from './components/emergency/EmergencyConsole';
+import { NotificationDrawer } from './components/notifications/NotificationDrawer';
 import { AuthModal } from './components/auth/AuthModal';
 
 export default function App() {
@@ -35,8 +38,8 @@ export default function App() {
   const [healthLoading, setHealthLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Navigation Tabs for Phase 2 & 3
-  const [activeTab, setActiveTab] = useState<'overview' | 'ai-insights' | 'analytics' | 'simulator'>('overview');
+  // Navigation Tabs for Phase 1 - 4
+  const [activeTab, setActiveTab] = useState<'overview' | 'emergencies' | 'ai-insights' | 'analytics' | 'simulator'>('overview');
 
   // Patients State
   const [patients, setPatients] = useState<PatientDetail[]>([]);
@@ -156,7 +159,7 @@ export default function App() {
         <div className="hidden md:flex items-center space-x-4 text-slate-400 text-[11px]">
           <span>Schema: <strong className="text-teal-400">Contract v1.0</strong></span>
           <span>Dual DB: <strong className="text-teal-400">{health?.database || 'Active'}</strong></span>
-          <span>AI Engine: <strong className="text-emerald-400">Rules + Isolation Forest</strong></span>
+          <span>Emergency System: <strong className="text-rose-400">State Machine Ready</strong></span>
         </div>
       </div>
 
@@ -169,22 +172,25 @@ export default function App() {
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-xl font-bold tracking-tight text-white">ResQCare <span className="text-teal-400">AI</span></h1>
-              <span className="text-[10px] font-semibold uppercase tracking-wider bg-teal-500/10 text-teal-400 border border-teal-500/20 px-2 py-0.5 rounded-full">
-                Phase 3 Intelligence
+              <span className="text-[10px] font-semibold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded-full">
+                Phase 4 Emergency Response
               </span>
             </div>
             <p className="text-xs text-slate-400">Intelligent Health Telemetry & Emergency Coordination Command Center</p>
           </div>
         </div>
 
-        {/* Right Controls: User Profile + System Status */}
+        {/* Right Controls: In-App Alerts + User Profile + System Status */}
         <div className="flex items-center space-x-3">
+          {/* Notification Alert Bell Drawer */}
+          <NotificationDrawer onSelectEvent={() => setActiveTab('emergencies')} />
+
           <button
             onClick={() => setIsAuthOpen(true)}
             className="flex items-center space-x-2 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-xl transition-all"
           >
             <UserCheck className="w-3.5 h-3.5 text-teal-400" />
-            <span>{currentUser ? currentUser.full_name : 'Sign In / Persona'}</span>
+            <span className="hidden sm:inline">{currentUser ? currentUser.full_name : 'Sign In / Persona'}</span>
           </button>
 
           <button 
@@ -194,7 +200,7 @@ export default function App() {
             title="Refresh backend status"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${healthLoading ? 'animate-spin text-teal-400' : 'text-slate-400'}`} />
-            <span className="hidden sm:inline">{healthLoading ? 'Checking...' : 'Refresh'}</span>
+            <span className="hidden md:inline">{healthLoading ? 'Checking...' : 'Refresh'}</span>
           </button>
 
           <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl border bg-slate-900 border-slate-800">
@@ -209,7 +215,7 @@ export default function App() {
       {/* Main Workspace Body */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
 
-        {/* Navigation Tabs (Overview, AI Insights, Analytics, Simulator) */}
+        {/* Navigation Tabs (Overview, Emergency Response, AI Insights, Analytics, Simulator) */}
         <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2">
           <button
             onClick={() => setActiveTab('overview')}
@@ -221,6 +227,18 @@ export default function App() {
           >
             <Activity className="w-3.5 h-3.5" />
             <span>Overview & Waveforms</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('emergencies')}
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+              activeTab === 'emergencies'
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 shadow-sm shadow-rose-500/10'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <Siren className="w-3.5 h-3.5 text-rose-400" />
+            <span>Emergency Response</span>
           </button>
 
           <button
@@ -275,9 +293,9 @@ export default function App() {
 
         {/* Live Critical Incident Alert Banner (Shows when anomaly occurs) */}
         {(isFallAlert || isHypoxic || isTachycardic || isBradycardic || isSensorDropped) && (
-          <div className={`p-4 rounded-2xl border flex items-center justify-between animate-pulse ${
+          <div className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
             isFallAlert 
-              ? 'bg-rose-950/70 border-rose-500 text-rose-200'
+              ? 'bg-rose-950/70 border-rose-500 text-rose-200 animate-pulse'
               : isHypoxic 
               ? 'bg-amber-950/70 border-amber-500 text-amber-200'
               : isTachycardic || isBradycardic
@@ -296,13 +314,18 @@ export default function App() {
                 </h4>
                 <p className="text-xs opacity-90 mt-0.5">
                   Simulated observation frame recorded at {latestPacket?.recorded_at ? new Date(latestPacket.recorded_at).toLocaleTimeString() : 'N/A'}.
-                  AI assessment categorizes this as elevated risk. Emergency response workflow active in Phase 4.
+                  Emergency Response state machine actively tracking this event.
                 </p>
               </div>
             </div>
-            <span className="text-xs uppercase font-extrabold px-3 py-1 bg-black/40 rounded-lg border border-white/10">
-              {latestPacket?.provenance_metadata?.scenario_name || 'ANOMALY'}
-            </span>
+
+            <button
+              onClick={() => setActiveTab('emergencies')}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-rose-600/30 flex items-center space-x-1.5 shrink-0"
+            >
+              <span>Manage Emergency Response</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         )}
 
@@ -495,6 +518,13 @@ export default function App() {
               </>
             )}
 
+            {activeTab === 'emergencies' && (
+              <EmergencyConsole
+                patientId={selectedPatientId || undefined}
+                patientName={patientDisplayName}
+              />
+            )}
+
             {activeTab === 'ai-insights' && selectedPatientId && (
               <AIInsightsPanel
                 patientId={selectedPatientId}
@@ -551,11 +581,11 @@ export default function App() {
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1 text-xs">
             <div className="flex items-center justify-between text-slate-400">
-              <span className="font-semibold">Telemetry Quality</span>
-              <Wifi className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-semibold">Emergency System</span>
+              <Siren className="w-3.5 h-3.5 text-rose-400" />
             </div>
-            <p className="text-white font-bold">{latestPacket?.signal_quality || 'ONLINE'}</p>
-            <p className="text-slate-500">Strict Provenance Enforced</p>
+            <p className="text-white font-bold">State Machine Active</p>
+            <p className="text-slate-500">Grace Verification & Auto-Escalation</p>
           </div>
         </div>
 

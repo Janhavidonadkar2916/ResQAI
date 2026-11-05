@@ -61,3 +61,4 @@ def evaluate_arbitrary_packet(
     Returns composite risk score, rule breakdown, and explainability feature attribution.
     """
     return IntelligenceOrchestrator.evaluate_packet(packet=req.packet, db=db, persist=False)
+

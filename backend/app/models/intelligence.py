@@ -29,3 +29,4 @@ class RiskAssessment(Base):
     __table_args__ = (
         Index("ix_risk_patient_assessed", "patient_id", "assessed_at"),
     )
+

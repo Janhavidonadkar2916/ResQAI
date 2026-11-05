@@ -77,3 +77,4 @@ class VitalAnomalyDetector:
 
 # Global singleton detector instance
 anomaly_detector_instance = VitalAnomalyDetector()
+

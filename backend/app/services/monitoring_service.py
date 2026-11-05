@@ -127,3 +127,4 @@ class MonitoringAnalyticsService:
             active_device_status="ONLINE" if total_count > 0 else "OFFLINE",
             recommendations=recommendations
         )
+

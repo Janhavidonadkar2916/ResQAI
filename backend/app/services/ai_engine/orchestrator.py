@@ -105,4 +105,13 @@ class IntelligenceOrchestrator:
             db.add(db_record)
             db.commit()
 
+            # Phase 4 Hook: Auto-trigger Emergency Workflow if Critical
+            try:
+                from app.services.emergency_service import EmergencyService
+                EmergencyService.auto_trigger_from_ai(db, packet, response)
+            except Exception as e:
+                # Log but do not block AI scoring
+                pass
+
         return response
+

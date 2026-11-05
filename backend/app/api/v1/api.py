@@ -1,5 +1,15 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth, patients, sensors, simulator, intelligence, monitoring
+from app.api.v1.endpoints import (
+    health, 
+    auth, 
+    patients, 
+    sensors, 
+    simulator, 
+    intelligence, 
+    monitoring,
+    emergencies,
+    notifications
+)
 
 api_router = APIRouter()
 
@@ -10,3 +20,5 @@ api_router.include_router(sensors.router, prefix="/sensors", tags=["Sensors & In
 api_router.include_router(simulator.router, prefix="/simulator", tags=["Virtual Simulator"])
 api_router.include_router(intelligence.router, prefix="/intelligence", tags=["AI Intelligence Engine"])
 api_router.include_router(monitoring.router, prefix="/monitoring", tags=["Monitoring & Analytics"])
+api_router.include_router(emergencies.router, prefix="/emergencies", tags=["Emergency Response"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["In-App Notifications"])
