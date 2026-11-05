@@ -59,3 +59,4 @@ def login(login_req: LoginRequest, db: Session = Depends(get_db)) -> Token:
 def get_current_user_profile(current_user: User = Depends(require_current_user)) -> UserResponse:
     """Get the details of the currently logged-in user."""
     return UserResponse.model_validate(current_user)
+

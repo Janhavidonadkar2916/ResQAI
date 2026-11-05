@@ -43,3 +43,4 @@ def test_login_invalid_credentials(client: TestClient):
     }
     res = client.post("/api/v1/auth/login", json=login_data)
     assert res.status_code == 401
+

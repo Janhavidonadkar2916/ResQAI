@@ -284,3 +284,4 @@ class VirtualSensorEngine:
 
 # Global singleton instance
 virtual_sensor_engine = VirtualSensorEngine()
+

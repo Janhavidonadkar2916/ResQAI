@@ -50,3 +50,4 @@ def test_simulator_scenarios_and_ticks(client: TestClient):
     assert batch_res.status_code == 200
     batch_data = batch_res.json()
     assert len(batch_data) == 10
+

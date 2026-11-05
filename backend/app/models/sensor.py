@@ -36,3 +36,4 @@ class SensorReading(Base):
     __table_args__ = (
         Index("ix_sensor_patient_recorded", "patient_id", "recorded_at"),
     )
+

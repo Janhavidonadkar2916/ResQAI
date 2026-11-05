@@ -238,3 +238,4 @@ export function VitalsTrendChart({ data, isLoading }: VitalsTrendChartProps) {
     </div>
   );
 }
+

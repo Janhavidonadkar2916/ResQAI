@@ -44,3 +44,4 @@ class BatchGenerateRequest(BaseModel):
     scenario: ScenarioName = "NORMAL_RESTING"
     count: int = Field(default=30, ge=1, le=500, description="Number of sequential packets to generate")
     interval_seconds: int = Field(default=1, ge=1, le=60)
+

@@ -44,3 +44,4 @@ def test_patient_crud(client: TestClient):
     assert put_res.status_code == 200
     assert put_res.json()["room_or_residence"] == "Room 302 - Transferred"
     assert put_res.json()["risk_tier"] == "MODERATE"
+

@@ -14,3 +14,4 @@ export const sensorApi = {
       body: JSON.stringify(packet)
     })
 };
+

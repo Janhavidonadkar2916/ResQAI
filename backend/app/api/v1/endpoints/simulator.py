@@ -82,3 +82,4 @@ def generate_batch(
 def get_status(patient_id: str) -> SimulatorStatus:
     """Returns the current generator metrics and last produced packet for a patient."""
     return virtual_sensor_engine.get_status(patient_id)
+

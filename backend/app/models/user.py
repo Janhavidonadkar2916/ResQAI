@@ -16,3 +16,4 @@ class User(Base):
 
     # Relationships
     patient_accesses = relationship("PatientAccess", back_populates="user", cascade="all, delete-orphan")
+

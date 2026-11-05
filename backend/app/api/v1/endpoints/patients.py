@@ -71,3 +71,4 @@ def add_contact(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     contact = PatientService.add_emergency_contact(db, patient_id, contact_in)
     return EmergencyContactResponse.model_validate(contact)
+

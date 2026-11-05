@@ -8,12 +8,15 @@ import {
   Heart, 
   Thermometer, 
   Wind, 
-  AlertTriangle,
-  RefreshCw,
-  Sliders,
-  Info,
-  UserCheck,
-  Flame
+  AlertTriangle, 
+  RefreshCw, 
+  Sliders, 
+  Info, 
+  UserCheck, 
+  Flame,
+  BrainCircuit,
+  BarChart3,
+  Wifi
 } from 'lucide-react';
 import { fetchApi } from './api/client';
 import { patientApi, PatientDetail } from './api/patientApi';
@@ -21,14 +24,19 @@ import { sensorApi } from './api/sensorApi';
 import { SystemHealthStatus, SensorPacket, User as UserType } from './types';
 import { PatientRoster } from './components/dashboard/PatientRoster';
 import { VitalsTrendChart } from './components/monitoring/VitalsTrendChart';
+import { Kinematic3DPlot } from './components/monitoring/Kinematic3DPlot';
+import { AnalyticsSummaryCards } from './components/monitoring/AnalyticsSummaryCards';
 import { SimulatorControlPanel } from './components/simulator/SimulatorControlPanel';
+import { AIInsightsPanel } from './components/intelligence/AIInsightsPanel';
 import { AuthModal } from './components/auth/AuthModal';
 
 export default function App() {
   const [health, setHealth] = useState<SystemHealthStatus | null>(null);
   const [healthLoading, setHealthLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'simulator' | 'patients'>('overview');
+  
+  // Navigation Tabs for Phase 2 & 3
+  const [activeTab, setActiveTab] = useState<'overview' | 'ai-insights' | 'analytics' | 'simulator'>('overview');
 
   // Patients State
   const [patients, setPatients] = useState<PatientDetail[]>([]);
@@ -126,6 +134,7 @@ export default function App() {
   };
 
   const selectedPatient = patients.find((p) => p.id === selectedPatientId);
+  const patientDisplayName = selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name}` : 'Patient';
 
   // Status badge styling
   const isHypoxic = latestPacket?.spo2_percent !== null && latestPacket?.spo2_percent !== undefined && latestPacket.spo2_percent < 90;
@@ -147,7 +156,7 @@ export default function App() {
         <div className="hidden md:flex items-center space-x-4 text-slate-400 text-[11px]">
           <span>Schema: <strong className="text-teal-400">Contract v1.0</strong></span>
           <span>Dual DB: <strong className="text-teal-400">{health?.database || 'Active'}</strong></span>
-          <span>Simulation: <strong className="text-emerald-400">Live Virtual Sensor</strong></span>
+          <span>AI Engine: <strong className="text-emerald-400">Rules + Isolation Forest</strong></span>
         </div>
       </div>
 
@@ -161,7 +170,7 @@ export default function App() {
             <div className="flex items-center space-x-2">
               <h1 className="text-xl font-bold tracking-tight text-white">ResQCare <span className="text-teal-400">AI</span></h1>
               <span className="text-[10px] font-semibold uppercase tracking-wider bg-teal-500/10 text-teal-400 border border-teal-500/20 px-2 py-0.5 rounded-full">
-                Phase 1 MVP
+                Phase 3 Intelligence
               </span>
             </div>
             <p className="text-xs text-slate-400">Intelligent Health Telemetry & Emergency Coordination Command Center</p>
@@ -200,18 +209,44 @@ export default function App() {
       {/* Main Workspace Body */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
 
-        {/* Navigation Tabs */}
-        <div className="flex space-x-2 border-b border-slate-800 pb-2">
+        {/* Navigation Tabs (Overview, AI Insights, Analytics, Simulator) */}
+        <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
               activeTab === 'overview'
                 ? 'bg-teal-500/15 text-teal-300 border border-teal-500/40 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
             }`}
           >
-            Overview & Telemetry
+            <Activity className="w-3.5 h-3.5" />
+            <span>Overview & Waveforms</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('ai-insights')}
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+              activeTab === 'ai-insights'
+                ? 'bg-teal-500/15 text-teal-300 border border-teal-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <BrainCircuit className="w-3.5 h-3.5 text-teal-400" />
+            <span>AI Anomaly & Risk Inspector</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+              activeTab === 'analytics'
+                ? 'bg-teal-500/15 text-teal-300 border border-teal-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-teal-400" />
+            <span>24h Telemetry Analytics</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('simulator')}
             className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -253,7 +288,7 @@ export default function App() {
               <ShieldAlert className="w-6 h-6 text-rose-400 shrink-0" />
               <div>
                 <h4 className="text-sm font-bold">
-                  {isFallAlert && `CRITICAL FALL EVENT DETECTED: ${selectedPatient?.first_name || 'Patient'} ${selectedPatient?.last_name || ''}`}
+                  {isFallAlert && `CRITICAL FALL EVENT DETECTED: ${patientDisplayName}`}
                   {isHypoxic && `SEVERE HYPOXIA ALERT: SpO2 ${latestPacket?.spo2_percent}% below 90% threshold`}
                   {isTachycardic && `ACUTE TACHYCARDIA EPISODE: Heart Rate ${latestPacket?.heart_rate_bpm} BPM`}
                   {isBradycardic && `CRITICAL BRADYCARDIA ALERT: Heart Rate ${latestPacket?.heart_rate_bpm} BPM`}
@@ -261,7 +296,7 @@ export default function App() {
                 </h4>
                 <p className="text-xs opacity-90 mt-0.5">
                   Simulated observation frame recorded at {latestPacket?.recorded_at ? new Date(latestPacket.recorded_at).toLocaleTimeString() : 'N/A'}.
-                  Emergency workflow state machine triggered in Phase 4.
+                  AI assessment categorizes this as elevated risk. Emergency response workflow active in Phase 4.
                 </p>
               </div>
             </div>
@@ -440,7 +475,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Main Content Layout: Patient Roster + Interactive Trend Charts */}
+        {/* Dynamic Tab Content Area */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Column: Monitored Patient Roster */}
           <div className="lg:col-span-1">
@@ -451,19 +486,35 @@ export default function App() {
             />
           </div>
 
-          {/* Right Column: Telemetry Charts or Simulator Controls */}
+          {/* Right Column: Tab View */}
           <div className="lg:col-span-3 space-y-6">
-            {activeTab === 'overview' ? (
-              <VitalsTrendChart data={history} isLoading={chartLoading} />
-            ) : null}
+            {activeTab === 'overview' && (
+              <>
+                <VitalsTrendChart data={history} isLoading={chartLoading} />
+                <Kinematic3DPlot packet={latestPacket} />
+              </>
+            )}
 
-            {/* Virtual Simulator Control Panel */}
-            {selectedPatient && (
+            {activeTab === 'ai-insights' && selectedPatientId && (
+              <AIInsightsPanel
+                patientId={selectedPatientId}
+                patientName={patientDisplayName}
+              />
+            )}
+
+            {activeTab === 'analytics' && selectedPatientId && (
+              <AnalyticsSummaryCards
+                patientId={selectedPatientId}
+                patientName={patientDisplayName}
+              />
+            )}
+
+            {activeTab === 'simulator' && selectedPatientId && (
               <SimulatorControlPanel
-                patientId={selectedPatient.id}
-                patientName={`${selectedPatient.first_name} ${selectedPatient.last_name}`}
+                patientId={selectedPatientId}
+                patientName={patientDisplayName}
                 onPacketGenerated={handlePacketGenerated}
-                onBatchGenerated={() => loadTelemetry(selectedPatient.id)}
+                onBatchGenerated={() => loadTelemetry(selectedPatientId)}
               />
             )}
           </div>
@@ -482,7 +533,7 @@ export default function App() {
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1 text-xs">
             <div className="flex items-center justify-between text-slate-400">
-              <span className="font-semibold">Database Engine</span>
+              <span className="font-semibold">Dual Database</span>
               <Database className="w-3.5 h-3.5 text-indigo-400" />
             </div>
             <p className="text-white font-bold">{health ? health.database : 'Dual Mode'}</p>
@@ -491,20 +542,20 @@ export default function App() {
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1 text-xs">
             <div className="flex items-center justify-between text-slate-400">
-              <span className="font-semibold">Virtual Simulator</span>
-              <Radio className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-semibold">AI Intelligence Engine</span>
+              <BrainCircuit className="w-3.5 h-3.5 text-rose-400" />
             </div>
-            <p className="text-white font-bold">7 Physiological Profiles</p>
-            <p className="text-slate-500">Zero Physical Hardware Dependency</p>
+            <p className="text-white font-bold">Two-Tier Hybrid</p>
+            <p className="text-slate-500">Rules + Isolation Forest</p>
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1 text-xs">
             <div className="flex items-center justify-between text-slate-400">
-              <span className="font-semibold">Authentication (RBAC)</span>
-              <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+              <span className="font-semibold">Telemetry Quality</span>
+              <Wifi className="w-3.5 h-3.5 text-emerald-400" />
             </div>
-            <p className="text-white font-bold">{currentUser ? currentUser.role : 'Guest Mode'}</p>
-            <p className="text-slate-500">Caregiver / Clinician Sessions</p>
+            <p className="text-white font-bold">{latestPacket?.signal_quality || 'ONLINE'}</p>
+            <p className="text-slate-500">Strict Provenance Enforced</p>
           </div>
         </div>
 
@@ -532,7 +583,7 @@ export default function App() {
           <span>ResQCare AI Prototype • Research-Oriented Portfolio Architecture</span>
         </div>
         <div>
-          <span>Modular Monolith • FastAPI • React 18 • TypeScript • Tailwind CSS • Recharts</span>
+          <span>Modular Monolith • FastAPI • React 18 • TypeScript • Tailwind CSS • Scikit-Learn • Recharts</span>
         </div>
       </footer>
     </div>

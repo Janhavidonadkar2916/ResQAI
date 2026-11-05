@@ -184,3 +184,4 @@ class PatientService:
             db.add(dev2)
 
             db.commit()
+

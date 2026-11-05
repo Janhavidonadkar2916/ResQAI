@@ -129,3 +129,4 @@ class IngestionService:
             )
             for r in readings
         ]
+

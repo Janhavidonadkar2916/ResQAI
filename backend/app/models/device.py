@@ -17,3 +17,4 @@ class Device(Base):
 
     patient = relationship("Patient", back_populates="devices")
     readings = relationship("SensorReading", back_populates="device", cascade="all, delete-orphan")
+

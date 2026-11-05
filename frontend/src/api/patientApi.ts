@@ -26,3 +26,4 @@ export const patientApi = {
     body: JSON.stringify(data)
   })
 };
+

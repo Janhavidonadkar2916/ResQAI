@@ -46,3 +46,4 @@ def require_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return current_user
+

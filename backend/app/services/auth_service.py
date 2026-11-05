@@ -36,3 +36,4 @@ class AuthService:
         db.commit()
         db.refresh(user)
         return user
+
