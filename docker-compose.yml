@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # Relational Database Service (PostgreSQL 16)
   db:
     image: postgres:16-alpine
     container_name: resqcare_postgres
@@ -18,7 +19,48 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - resqcare_network
+
+  # Core API & Telemetry Backend (FastAPI + SQLAlchemy + AI Engine)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resqcare_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://resqcare_user:resqcare_dev_password@db:5432/resqcare
+      SECRET_KEY: ${SECRET_KEY:-resqcare-ai-super-secret-production-key-2026}
+      BACKEND_CORS_ORIGINS: '["http://localhost", "http://localhost:80", "http://localhost:3000", "http://localhost:5173", "http://127.0.0.1", "http://127.0.0.1:80"]'
+      ENABLE_SYNTHETIC_DATA: "True"
+    ports:
+      - "8000:8000"
+    networks:
+      - resqcare_network
+
+  # Web Dashboard Frontend (React + Vite + Nginx Reverse Proxy)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resqcare_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+      - "80:80"
+    networks:
+      - resqcare_network
 
 volumes:
   postgres_data:
+    driver: local
 
+networks:
+  resqcare_network:
+    driver: bridge
