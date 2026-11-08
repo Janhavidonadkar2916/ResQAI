@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # Database
     # Default to PostgreSQL, auto-fallback to SQLite when Postgres is unavailable
     DATABASE_URL: Optional[str] = None
+    POSTGRES_URL: Optional[str] = None
     SQLITE_URL: str = "sqlite:///./resqcare.db"
     
     # Simulator Settings
