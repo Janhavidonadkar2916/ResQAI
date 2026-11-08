@@ -179,3 +179,4 @@ The platform is strictly **software-first**, eliminating physical hardware depen
                                | notes             |
                                +-------------------+
 ```
+

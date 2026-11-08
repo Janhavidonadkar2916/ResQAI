@@ -89,3 +89,4 @@ Black-box alert flags undermine clinical trust. ResQCare AI computes determinist
    Automated systems must never unilaterally dispatch emergency first responders (911/112) without human validation, as false dispatches can trigger severe civil liability and strain public safety resources.
 3. **Silence is Never Safety**:
    If a patient fails to answer the 45-second verification countdown, the platform treats the silence as potential incapacitation and immediately alerts the caregiver network.
+

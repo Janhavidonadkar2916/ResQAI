@@ -57,3 +57,4 @@ export const medicalProfileApi = {
   getEmergencyPass: (patientId: string) =>
     fetchApi<EmergencyPassData>(`/medical-profiles/patients/${patientId}/emergency-pass`)
 };
+

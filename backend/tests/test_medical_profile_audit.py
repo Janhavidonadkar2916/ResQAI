@@ -47,3 +47,4 @@ def test_medical_profile_and_audit_trail(client: TestClient):
     assert "VIEW_MEDICAL_PROFILE" in action_types
     assert "UPDATE_MEDICAL_PROFILE" in action_types
     assert "EXPORT_EMERGENCY_PASS" in action_types
+

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Relational Database Service (PostgreSQL 16)
   db:
@@ -33,7 +31,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://resqcare_user:resqcare_dev_password@db:5432/resqcare
+      DATABASE_URL: postgresql+psycopg2://resqcare_user:resqcare_dev_password@db:5432/resqcare
       SECRET_KEY: ${SECRET_KEY:-resqcare-ai-super-secret-production-key-2026}
       BACKEND_CORS_ORIGINS: '["http://localhost", "http://localhost:80", "http://localhost:3000", "http://localhost:5173", "http://127.0.0.1", "http://127.0.0.1:80"]'
       ENABLE_SYNTHETIC_DATA: "True"

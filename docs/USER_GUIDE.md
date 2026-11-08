@@ -125,3 +125,4 @@ ResQCare AI maintains an immutable security audit ledger tracking all interactio
   - **IP Address**
   - **Target Resource UUID**
 - Use the **Filter dropdown** to view specific action categories or click **Refresh** to poll recent entries.
+

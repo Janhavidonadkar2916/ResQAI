@@ -11,9 +11,12 @@ logger = logging.getLogger("resqcare.database")
 def get_engine():
     # If DATABASE_URL is provided, try connecting to PostgreSQL
     if settings.DATABASE_URL:
+        db_url = settings.DATABASE_URL
+        if db_url.startswith("postgresql://"):
+            db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
         try:
             pg_engine = create_engine(
-                settings.DATABASE_URL,
+                db_url,
                 pool_pre_ping=True,
                 echo=False
             )
@@ -24,7 +27,7 @@ def get_engine():
             return pg_engine, "PostgreSQL 16"
         except Exception as e:
             logger.warning(
-                f"PostgreSQL connection to {settings.DATABASE_URL} failed ({e}). "
+                f"PostgreSQL connection to {db_url} failed ({e}). "
                 f"Falling back to local SQLite database at {settings.SQLITE_URL}."
             )
     

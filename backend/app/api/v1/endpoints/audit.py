@@ -21,3 +21,4 @@ def get_audit_logs(
     """Retrieves immutable audit trail of accesses to sensitive medical data, actions, and resolutions."""
     logs = AuditService.list_logs(db, limit=limit, resource_type=resource_type, action_type=action_type)
     return [AuditLogResponse.model_validate(l) for l in logs]
+

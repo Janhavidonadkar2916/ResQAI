@@ -175,3 +175,4 @@ The ResQCare Simulator produces 7 reproducible physiological scenarios:
 | Activity: UNKNOWN | Quality Status: MISSING_SENSORS | Provenance preserved            |
 +---------------------------------------------------------------------------------------+
 ```
+
