@@ -1,0 +1,13 @@
+backend/.venv
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+resqcare.db
+node_modules
+frontend/node_modules
+.pytest_cache
+.coverage
+.git
+.DS_Store
