@@ -75,3 +75,4 @@ export const emergencyApi = {
     }),
   getTimeline: (id: string) => fetchApi<EmergencyTimelineLog[]>(`/emergencies/${id}/timeline`)
 };
+

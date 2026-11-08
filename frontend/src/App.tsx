@@ -17,7 +17,9 @@ import {
   BrainCircuit,
   BarChart3,
   Siren,
-  ChevronRight
+  ChevronRight,
+  FileHeart,
+  ShieldCheck
 } from 'lucide-react';
 import { fetchApi } from './api/client';
 import { patientApi, PatientDetail } from './api/patientApi';
@@ -30,6 +32,8 @@ import { AnalyticsSummaryCards } from './components/monitoring/AnalyticsSummaryC
 import { SimulatorControlPanel } from './components/simulator/SimulatorControlPanel';
 import { AIInsightsPanel } from './components/intelligence/AIInsightsPanel';
 import { EmergencyConsole } from './components/emergency/EmergencyConsole';
+import { MedicalProfileView } from './components/medical/MedicalProfileView';
+import { AuditTrailViewer } from './components/audit/AuditTrailViewer';
 import { NotificationDrawer } from './components/notifications/NotificationDrawer';
 import { AuthModal } from './components/auth/AuthModal';
 
@@ -38,8 +42,10 @@ export default function App() {
   const [healthLoading, setHealthLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Navigation Tabs for Phase 1 - 4
-  const [activeTab, setActiveTab] = useState<'overview' | 'emergencies' | 'ai-insights' | 'analytics' | 'simulator'>('overview');
+  // Navigation Tabs for All Phases
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'emergencies' | 'ai-insights' | 'medical-profile' | 'audit' | 'analytics' | 'simulator'
+  >('overview');
 
   // Patients State
   const [patients, setPatients] = useState<PatientDetail[]>([]);
@@ -159,7 +165,7 @@ export default function App() {
         <div className="hidden md:flex items-center space-x-4 text-slate-400 text-[11px]">
           <span>Schema: <strong className="text-teal-400">Contract v1.0</strong></span>
           <span>Dual DB: <strong className="text-teal-400">{health?.database || 'Active'}</strong></span>
-          <span>Emergency System: <strong className="text-rose-400">State Machine Ready</strong></span>
+          <span>Security: <strong className="text-teal-400">Tamper-Evident Audit</strong></span>
         </div>
       </div>
 
@@ -172,8 +178,8 @@ export default function App() {
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-xl font-bold tracking-tight text-white">ResQCare <span className="text-teal-400">AI</span></h1>
-              <span className="text-[10px] font-semibold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded-full">
-                Phase 4 Emergency Response
+              <span className="text-[10px] font-semibold uppercase tracking-wider bg-teal-500/10 text-teal-400 border border-teal-500/20 px-2 py-0.5 rounded-full">
+                Full Platform Release
               </span>
             </div>
             <p className="text-xs text-slate-400">Intelligent Health Telemetry & Emergency Coordination Command Center</p>
@@ -215,7 +221,7 @@ export default function App() {
       {/* Main Workspace Body */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
 
-        {/* Navigation Tabs (Overview, Emergency Response, AI Insights, Analytics, Simulator) */}
+        {/* Navigation Tabs */}
         <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2">
           <button
             onClick={() => setActiveTab('overview')}
@@ -251,6 +257,30 @@ export default function App() {
           >
             <BrainCircuit className="w-3.5 h-3.5 text-teal-400" />
             <span>AI Anomaly & Risk Inspector</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('medical-profile')}
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+              activeTab === 'medical-profile'
+                ? 'bg-teal-500/15 text-teal-300 border border-teal-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <FileHeart className="w-3.5 h-3.5 text-teal-400" />
+            <span>Medical Profile & Pass</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+              activeTab === 'audit'
+                ? 'bg-teal-500/15 text-teal-300 border border-teal-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-teal-400" />
+            <span>Audit Trail</span>
           </button>
 
           <button
@@ -509,7 +539,7 @@ export default function App() {
             />
           </div>
 
-          {/* Right Column: Tab View */}
+          {/* Right Column: Active Tab Content */}
           <div className="lg:col-span-3 space-y-6">
             {activeTab === 'overview' && (
               <>
@@ -530,6 +560,17 @@ export default function App() {
                 patientId={selectedPatientId}
                 patientName={patientDisplayName}
               />
+            )}
+
+            {activeTab === 'medical-profile' && selectedPatientId && (
+              <MedicalProfileView
+                patientId={selectedPatientId}
+                patientName={patientDisplayName}
+              />
+            )}
+
+            {activeTab === 'audit' && (
+              <AuditTrailViewer />
             )}
 
             {activeTab === 'analytics' && selectedPatientId && (
@@ -581,11 +622,11 @@ export default function App() {
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1 text-xs">
             <div className="flex items-center justify-between text-slate-400">
-              <span className="font-semibold">Emergency System</span>
-              <Siren className="w-3.5 h-3.5 text-rose-400" />
+              <span className="font-semibold">Security & Audit</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-400" />
             </div>
-            <p className="text-white font-bold">State Machine Active</p>
-            <p className="text-slate-500">Grace Verification & Auto-Escalation</p>
+            <p className="text-white font-bold">Tamper-Evident Trail</p>
+            <p className="text-slate-500">HIPAA/GDPR Grade Access Logs</p>
           </div>
         </div>
 

@@ -8,7 +8,9 @@ from app.api.v1.endpoints import (
     intelligence, 
     monitoring,
     emergencies,
-    notifications
+    notifications,
+    medical_profiles,
+    audit
 )
 
 api_router = APIRouter()
@@ -22,3 +24,5 @@ api_router.include_router(intelligence.router, prefix="/intelligence", tags=["AI
 api_router.include_router(monitoring.router, prefix="/monitoring", tags=["Monitoring & Analytics"])
 api_router.include_router(emergencies.router, prefix="/emergencies", tags=["Emergency Response"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["In-App Notifications"])
+api_router.include_router(medical_profiles.router, prefix="/medical-profiles", tags=["Medical Profile Vault"])
+api_router.include_router(audit.router, prefix="/audit", tags=["Tamper-Evident Audit Logs"])

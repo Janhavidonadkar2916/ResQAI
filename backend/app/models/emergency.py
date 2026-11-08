@@ -72,3 +72,4 @@ class Notification(Base):
 
     emergency_event = orm_relationship("EmergencyEvent", back_populates="notifications")
     user = orm_relationship("User")
+

@@ -119,3 +119,4 @@ def test_notifications_lifecycle(client: TestClient):
     ack_res = client.post("/api/v1/notifications/acknowledge-all")
     assert ack_res.status_code == 200
     assert ack_res.json()["status"] == "success"
+

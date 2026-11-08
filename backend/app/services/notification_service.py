@@ -65,3 +65,4 @@ class NotificationService:
         count = query.update({"is_read": True, "is_acknowledged": True, "acknowledged_at": now})
         db.commit()
         return count
+

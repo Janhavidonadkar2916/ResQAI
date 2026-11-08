@@ -41,3 +41,4 @@ def acknowledge_all(
     user_id = current_user.id if current_user else None
     count = NotificationService.acknowledge_all(db, user_id=user_id)
     return {"status": "success", "count": count, "message": f"Acknowledged {count} notifications"}
+

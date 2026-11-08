@@ -5,6 +5,8 @@ from app.models.device import Device
 from app.models.sensor import SensorReading
 from app.models.intelligence import RiskAssessment
 from app.models.emergency import EmergencyEvent, EmergencyTimelineLog, Notification
+from app.models.medical_profile import MedicalProfile
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "Base",
@@ -17,5 +19,7 @@ __all__ = [
     "RiskAssessment",
     "EmergencyEvent",
     "EmergencyTimelineLog",
-    "Notification"
+    "Notification",
+    "MedicalProfile",
+    "AuditLog"
 ]

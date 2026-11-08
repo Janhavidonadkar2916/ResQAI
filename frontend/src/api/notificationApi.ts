@@ -21,3 +21,4 @@ export const notificationApi = {
   acknowledgeAll: () =>
     fetchApi<{ status: string; count: number }>('/notifications/acknowledge-all', { method: 'POST' })
 };
+
