@@ -3,14 +3,23 @@
 > **AI-Assisted Health Monitoring & Emergency Response Software Platform**  
 > *Long-term, research-oriented healthcare command center engineered for clinical explainability, fail-safe incident coordination, and virtual sensor telemetry simulation.*
 
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-000000.svg?logo=vercel&logoColor=white)](https://resqai-seven.vercel.app)
+[![Supabase Database](https://img.shields.io/badge/Database-Supabase_PostgreSQL-3ECF8E.svg?logo=supabase&logoColor=white)](https://supabase.com)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React_18-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Styles-Tailwind_CSS-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 [![Docker](https://img.shields.io/badge/Container-Docker_Compose-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com)
-[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_16-336791.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![Tests](https://img.shields.io/badge/Tests-20%2F20%20Passing-brightgreen.svg)](backend/tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+---
+
+## 🌐 Live Production Deployment
+
+- **Live Command Center Dashboard**: [https://resqai-seven.vercel.app](https://resqai-seven.vercel.app)
+- **Live Interactive API Documentation**: [https://resqai-seven.vercel.app/api/v1/docs](https://resqai-seven.vercel.app/api/v1/docs)
+- **Managed Cloud Database**: Hosted on Supabase (PostgreSQL 16) with active connection pooling and automatic schema synchronization.
 
 ---
 
